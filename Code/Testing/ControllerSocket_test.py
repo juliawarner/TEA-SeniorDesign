@@ -6,7 +6,7 @@
 import socket
 
 #constants for IP addresses and port number
-RASPI_IP = '192.168.2.9'
+RASPI_IP = '192.168.2.7'
 PORT_NUM = 14357
 
 #create socket object
@@ -35,7 +35,7 @@ while(running):
     print(f'The Raspberry Pi said: {response}')
 
     #check if raspberry pi closed the connection
-    if(response == 'Closing connection'):
+    if(response == 'I heard stop. Closing connection'):
         print('Closing controller test program')
         running = False
 

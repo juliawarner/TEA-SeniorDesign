@@ -40,7 +40,7 @@ while running:
     #check if test should end
     if msgString == 'stop':
         running = False
-        connection.send(bytes('Closing connection', "utf-8"))
+        connection.send(bytes('. Closing connection', "utf-8"))
 
 #end connection when loop ends
 connection.close()

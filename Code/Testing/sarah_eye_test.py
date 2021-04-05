@@ -83,7 +83,7 @@ def neutral():
     pixels[60+64] = (r , g ,b)
     for i in range(4):
         pixels [10 +64 + i] = (r , g ,b)
-        pixels[17 + + 64 i] = (r , g ,b)
+        pixels[17 + 64 + i] = (r , g ,b)
         pixels[50 + 64 + i] = (r , g ,b)
     
     for j in range(6):
@@ -104,3 +104,6 @@ def sad():
         pixels [33 + 64 + i] = (r , g ,b)
     for j in range(4):
         pixels [42 + 64 + i] = (r , g ,b)
+
+while(1):
+    sad()

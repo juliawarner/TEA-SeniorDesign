@@ -1,0 +1,2 @@
+ffmpeg -re -f alsa -ac 1 -i hw:2 -acodec libmp3lame -ab 96k -f rtp rtp://192.168.0.179:1234
+ffplay rtp://192.168.0.180:2345

@@ -54,24 +54,12 @@ servos = ServoKit(channels=16)
 #time.sleep(2)
 
 #function to test animation for waving the bot's right arm
-#assumes:
-#        right shoulder rotation = servos.servo[0]
-#        right shoulder flaxation = servos.servo[1]
-#        right elbow flexation = servos.servo[2]
-#        right gripper = servos.servo[3]
-#        all servos start from neutral position
-#changes servos object global variable
+#waves right arm
 def wave_right_arm():
-    #specify we will be editing global variable
     global servos
-
+    
     print("Starting wave! Hello!")
     
-    #start at neutral
-    servos.servo[SERVO1_INDEX].angle = SERVO1_NEUTRAL
-    servos.servo[SERVO2_INDEX].angle = SERVO2_NEUTRAL
-    servos.servo[SERVO3_INDEX].angle = SERVO3_NEUTRAL
-
     #animation keyframe degrees
     shoulder_flexation = 135 #arm rasied to wave
     elbow_flexation_1 = 118 #starting point for wave
@@ -79,62 +67,46 @@ def wave_right_arm():
     gripper_open = 102 #open position for gripper
 
     #animation speeds, delay in seconds between each change in servo position
-    arm_raise_lower_speed = 0.005 #20 milliseconds
+    arm_raise_lower_speed = 0.015 #15 milliseconds
     wave_speed = 0.010 #10 milliseconds
-
-    #raise arm for wave and open gripper
-    while(servos.servo[SERVO1_INDEX].angle > shoulder_flexation or servos.servo[SERVO2_INDEX].angle < elbow_flexation_1):
-        #add or subtract but make sure target isn't overshot
-        servos.servo[SERVO1_INDEX].angle = servos.servo[SERVO1_INDEX].angle - 1 if servos.servo[SERVO1_INDEX].angle > shoulder_flexation else shoulder_flexation
-        servos.servo[SERVO2_INDEX].angle = servos.servo[SERVO2_INDEX].angle + 1 if servos.servo[SERVO2_INDEX].angle < elbow_flexation_1 else elbow_flexation_1
-        servos.servo[SERVO3_INDEX].angle = servos.servo[SERVO3_INDEX].angle + 1 if servos.servo[SERVO3_INDEX].angle < gripper_open else gripper_open
-
-        time.sleep(arm_raise_lower_speed)
-
-    print("Arm raised!")
-
-    #wave back and forth twice
-    for i in range(2):
+    
+    print("Raising arm!")
+    
+    move_servos([SERVO1_INDEX, SERVO2_INDEX, SERVO3_INDEX],
+                [SERVO1_NEUTRAL, SERVO2_NEUTRAL, SERVO3_NEUTRAL],
+                [shoulder_flexation, elbow_flexation_1, gripper_open],
+                arm_raise_lower_speed)
+    
+    print("Arm raised")
+    
+    for _ in range(2):
         print("Waving!")
-        #move between two elbow flexation points
-        while(servos.servo[SERVO2_INDEX].angle < elbow_flexation_2):
-            servos.servo[SERVO2_INDEX].angle += 1
-
-            time.sleep(wave_speed)
-
-        while(servos.servo[SERVO2_INDEX].angle > elbow_flexation_1):
-            servos.servo[SERVO2_INDEX].angle -= 1
-
-            time.sleep(wave_speed)
-
-    print("Lowering arm!")
-
-    #lower arm after wave and close gripper
-    while(servos.servo[SERVO1_INDEX].angle < SERVO1_NEUTRAL or servos.servo[SERVO2_INDEX].angle > SERVO2_NEUTRAL):
-        #add or subtract but make sure target isn't overshot
-        servos.servo[SERVO1_INDEX].angle = servos.servo[SERVO1_INDEX].angle + 1 if servos.servo[SERVO1_INDEX].angle < SERVO1_NEUTRAL else SERVO1_NEUTRAL
-        servos.servo[SERVO2_INDEX].angle = servos.servo[SERVO2_INDEX].angle - 1 if servos.servo[SERVO2_INDEX].angle > SERVO2_NEUTRAL else SERVO2_NEUTRAL
-        servos.servo[SERVO3_INDEX].angle = servos.servo[SERVO3_INDEX].angle - 1 if servos.servo[SERVO3_INDEX].angle > SERVO3_NEUTRAL else SERVO3_NEUTRAL
-
-        time.sleep(arm_raise_lower_speed)
         
-    #disable channels used in this animation
-    servos.servo[SERVO1_INDEX].angle = None
-    servos.servo[SERVO2_INDEX].angle = None
-    servos.servo[SERVO3_INDEX].angle = None
-
-    print("Done waving! Goodbye!")
+        move_servos([SERVO2_INDEX],
+                    [elbow_flexation_1],
+                    [elbow_flexation_2],
+                    wave_speed)
+        
+        move_servos([SERVO0_INDEX],
+                    [elbow_flexation_2],
+                    [elbow_flexation_1],
+                    wave_speed)
     
-#moves the right arm forwards, opening the gripper to receive a gift
+    print("Lowering arms!")
+    
+    move_servos([SERVO1_INDEX, SERVO2_INDEX, SERVO3_INDEX],
+                [shoulder_flexation, elbow_flexation_1, gripper_open],
+                [SERVO1_NEUTRAL, SERVO2_NEUTRAL, SERVO3_NEUTRAL],
+                arm_raise_lower_speed)
+    
+    print("Done waving!")
+    
+    #disable servos used in this animation
+    disable_channels([SERVO1_INDEX, SERVO2_INDEX, SERVO3_INDEX])
+    
+#reaches right arm forward and opens gripper to receive gift
 def reach_right_arm():
-    #specify we will be editing global variable
     global servos
-    
-    #start at neutral
-    servos.servo[SERVO0_INDEX].angle = SERVO0_NEUTRAL
-    servos.servo[SERVO1_INDEX].angle = SERVO1_NEUTRAL
-    servos.servo[SERVO2_INDEX].angle = SERVO2_NEUTRAL
-    servos.servo[SERVO3_INDEX].angle = SERVO3_NEUTRAL
     
     #animation keyframe degree positions
     shoulder_rotation = 66 #rotate shoulder so arm can reach forwards
@@ -142,64 +114,65 @@ def reach_right_arm():
     elbow_flexation = 78 #raise hand a little
     gripper_open = 102 #open position for gripper
     
-    
     #speed variables
     arm_raise_lower_speed = 0.020 #20 milliseconds
     gripper_open_close_speed = 0.010 #10 milliseconds
     
-    #raise arm
-    while(servos.servo[SERVO0_INDEX].angle > shoulder_rotation or servos.servo[SERVO1_INDEX].angle > shoulder_flexation or servos.servo[SERVO2_INDEX].angle < elbow_flexation):
-        servos.servo[SERVO0_INDEX].angle = servos.servo[SERVO0_INDEX].angle - 1 if servos.servo[SERVO0_INDEX].angle > shoulder_rotation else shoulder_rotation
-        servos.servo[SERVO1_INDEX].angle = servos.servo[SERVO1_INDEX].angle - 1 if servos.servo[SERVO1_INDEX].angle > shoulder_flexation else shoulder_flexation
-        servos.servo[SERVO2_INDEX].angle = servos.servo[SERVO2_INDEX].angle + 1 if servos.servo[SERVO2_INDEX].angle < elbow_flexation else elbow_flexation
-        
-        time.sleep(arm_raise_lower_speed)
-        
-    print("Arm raised!")
+    print("Raising arm")
     
-    while(servos.servo[SERVO3_INDEX].angle < gripper_open):
-        servos.servo[SERVO3_INDEX].angle += 1
-        
-        time.sleep(gripper_open_close_speed)
+    move_servos([SERVO0_INDEX, SERVO1_INDEX, SERVO2_INDEX],
+                [SERVO0_NEUTRAL, SERVO1_NEUTRAL, SERVO2_NEUTRAL],
+                [shoulder_rotation, shoulder_flexation, elbow_flexation],
+                arm_raise_lower_speed)
     
-    print("Gripper open!")
-        
-    #please call retract_arm() immediately after calling this function
+    print("Arm raised")
+    
+    print("Opening gripper")
+    
+    move_servos([SERVO3_INDEX],
+                [SERVO3_NEUTRAL],
+                [gripper_open],
+                gripper_open_close_speed)
+    
+    print("Give me a treat!")
+    
+    #the next function called after this MUST BE retract_right_arm()
 
-#picks up where raise_arm leaves off
-#closes the gripper and returns arm to neutral position
-def retract_arm():
+#picks up where reach_right_arm left off 
+def retract_right_arm():
     global servos
     
     #assumes arms start in raised position
+    #animation keyframe degree positions
+    shoulder_rotation = 66 #rotate shoulder so arm can reach forwards
+    shoulder_flexation = 107 #raise arm a little
+    elbow_flexation = 78 #raise hand a little
+    gripper_open = 102 #open position for gripper
     
     #speed variables
     arm_raise_lower_speed = 0.020 #20 milliseconds
     gripper_open_close_speed = 0.010 #10 milliseconds
+    pause = 1.5 #1.5 seconds
     
-    #close gripper
-    while(servos.servo[SERVO3_INDEX].angle > SERVO3_NEUTRAL):
-        servos.servo[SERVO3_INDEX].angle -= 1
-        
-        time.sleep(gripper_open_close_speed)
+    print("Closing gripper")
     
-    print("Gripper closed.")
+    move_servos([SERVO3_INDEX],
+                [gripper_open],
+                [SERVO3_NEUTRAL],
+                gripper_open_close_speed)
     
-    #raise arm
-    while(servos.servo[SERVO0_INDEX].angle < SERVO0_NEUTRAL or servos.servo[SERVO1_INDEX].angle < SERVO1_NEUTRAL or servos.servo[SERVO2_INDEX].angle > SERVO2_NEUTRAL):
-        servos.servo[SERVO0_INDEX].angle = servos.servo[SERVO0_INDEX].angle + 1 if servos.servo[SERVO0_INDEX].angle < SERVO0_NEUTRAL else SERVO0_NEUTRAL
-        servos.servo[SERVO1_INDEX].angle = servos.servo[SERVO1_INDEX].angle + 1 if servos.servo[SERVO1_INDEX].angle < SERVO1_NEUTRAL else SERVO1_NEUTRAL
-        servos.servo[SERVO2_INDEX].angle = servos.servo[SERVO2_INDEX].angle - 1 if servos.servo[SERVO2_INDEX].angle > SERVO2_NEUTRAL else SERVO2_NEUTRAL
-        
-        time.sleep(arm_raise_lower_speed)
-        
+    #pause
+    time.sleep(pause)
+    
+    move_servos([SERVO0_INDEX, SERVO1_INDEX, SERVO2_INDEX],
+                [shoulder_rotation, shoulder_flexation, elbow_flexation],
+                [SERVO0_NEUTRAL, SERVO1_NEUTRAL, SERVO2_NEUTRAL],
+                arm_raise_lower_speed)
+    
     print("Arm lowered")
-        
-    #disable channels used in this animation
-    servos.servo[SERVO0_INDEX].angle = None
-    servos.servo[SERVO1_INDEX].angle = None
-    servos.servo[SERVO2_INDEX].angle = None
-    servos.servo[SERVO3_INDEX].angle = None
+    
+    #disable servos
+    disable_channels([SERVO0_INDEX, SERVO1_INDEX, SERVO2_INDEX, SERVO3_INDEX])
 
 #lifts arm up like he's gonna scratch his chin
 def curious_arm():
@@ -241,90 +214,6 @@ def curious_arm():
     #disable channels used in this animation
     servos.servo[SERVO1_INDEX].angle = None
     servos.servo[SERVO2_INDEX].angle = None
-    
-#does crab
-def crab():
-    global servos
-    
-    #start at neutral
-    servos.servo[SERVO1_INDEX].angle = SERVO1_NEUTRAL
-    servos.servo[SERVO2_INDEX].angle = SERVO2_NEUTRAL
-    servos.servo[SERVO3_INDEX].angle = SERVO3_NEUTRAL
-    servos.servo[SERVO5_INDEX].angle = SERVO5_NEUTRAL
-    servos.servo[SERVO6_INDEX].angle = SERVO6_NEUTRAL
-    servos.servo[SERVO7_INDEX].angle = SERVO7_NEUTRAL
-    
-    #speeds
-    arm_raise_lower_speed = 0.02
-    gripper_open_close = 0.01
-    
-    #number of times he opens and closes his claws
-    num_pinches = 4
-    
-    #animation keyframe degree values
-    right_shoulder_flexation = 66
-    right_elbow_flexation = 128
-    right_gripper_open = 102
-    left_shoulder_flexation = 138
-    left_elbow_flexation = 43
-    left_gripper_open = 160
-    
-    print("Raising arms")
-    
-    #assumes all servoes are changing the same amount
-    while(servos.servo[SERVO1_INDEX].angle > right_shoulder_flexation):
-        servos.servo[SERVO1_INDEX].angle -= 1
-        print(f"Servo 1 at {servos.servo[SERVO1_INDEX].angle}")
-        servos.servo[SERVO2_INDEX].angle += 1
-        print(f"Servo 2 at {servos.servo[SERVO2_INDEX].angle}")
-        servos.servo[SERVO5_INDEX].angle += 1
-        servos.servo[SERVO6_INDEX].angle -= 1
-        
-        time.sleep(arm_raise_lower_speed)
-        
-    print("beginning crab")
-    
-    for i in range(num_pinches):
-        #open grippers (assumes they are moving the same amount)
-        while(servos.servo[SERVO3_INDEX].angle < right_gripper_open):
-            servos.servo[SERVO3_INDEX].angle += 1
-            servos.servo[SERVO7_INDEX].angle -= 1
-            
-            time.sleep(gripper_open_close)
-        
-        #close grippers
-        while(servos.servo[SERVO3_INDEX].angle > SERVO3_NEUTRAL):
-            servos.servo[SERVO3_INDEX].angle -= 1
-            servos.servo[SERVO7_INDEX].angle += 1
-            
-            time.sleep(gripper_open_close)
-            
-        print("CRAB")
-        
-    
-    print("Lowering arms")
-    
-    #assumes all servoes are changing the same amount
-    while(servos.servo[SERVO1_INDEX].angle < SERVO1_NEUTRAL):
-        servos.servo[SERVO1_INDEX].angle += 1
-        print(f"Servo 1 at {servos.servo[SERVO1_INDEX].angle}")
-        servos.servo[SERVO2_INDEX].angle -= 1
-        print(f"Servo 2 at {servos.servo[SERVO2_INDEX].angle}")
-        servos.servo[SERVO5_INDEX].angle -= 1
-        servos.servo[SERVO6_INDEX].angle += 1
-        
-        time.sleep(arm_raise_lower_speed)
-            
-        
-    print("Done crabbing")
-    
-    #disable channels used in this animation
-    servos.servo[SERVO1_INDEX].angle = None
-    servos.servo[SERVO2_INDEX].angle = None
-    servos.servo[SERVO3_INDEX].angle = None
-    servos.servo[SERVO5_INDEX].angle = None
-    servos.servo[SERVO6_INDEX].angle = None
-    servos.servo[SERVO7_INDEX].angle = None
         
 
 #a small gesticulation animation
@@ -619,16 +508,16 @@ def init():
 init()
 
 
-move_to_neutral()
+#move_to_neutral()
 
-#move_servos([0, 2, 3], [0, 0, 180], [180, 90, 80], 0.01)
+#move_servos([0], [180], [0], 0.01)
 
-new_crab()
+#new_crab()
 
 #test_all_servos()
 #wave_right_arm()
-#reach_right_arm()
-#retract_arm()
+reach_right_arm()
+retract_right_arm()
 
 
 

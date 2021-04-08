@@ -8,11 +8,328 @@ from adafruit_servokit import ServoKit #servo driver library
 import board #used for controlling LED screens
 import neopixel #used for controlling LED screens
 import socket #socket library to receive controller commands
+from evdev import InputDevice, categorize, ecodes #used for JoyCon Events
 
 # **** GLOBAL VARIABLES ****
 RUNNING = True
 PERFORMANCE = True #use to switch between performance and drive mode
+JOYCON_PATH = '/dev/input/event11'
+#constants for IP addresses and port number
+RASPI_IP = '192.168.0.180'
+PORT_NUM = 14359
 
+#**** SERVO NEUTRAL POSITIONS ****
+#resting position in degrees for each servo
+#up/down indicates if increasing/decreasing the value keeps the servo within its range of motion
+#right arm
+#right shoulder rotation
+SERVO0_NEUTRAL = 156 #down
+SERVO0_INDEX = 0
+#right shoulder flexation
+SERVO1_NEUTRAL = 157 #down
+SERVO1_INDEX = 1
+#right elbow flexation
+SERVO2_NEUTRAL = 38 #up
+SERVO2_INDEX = 2
+#right gripper open/close
+SERVO3_NEUTRAL = 82 #up
+SERVO3_INDEX = 3
+
+#left arm
+#left shoulder rotation
+SERVO4_NEUTRAL = 41 #up
+SERVO4_INDEX = 4
+#left shoulder flexation
+SERVO5_NEUTRAL = 48 #up
+SERVO5_INDEX = 5
+#left elbow flexation
+SERVO6_NEUTRAL = 133 #down
+SERVO6_INDEX = 6
+#left gripper open/close
+SERVO7_NEUTRAL = 179 #down
+SERVO7_INDEX = 7
+
+#left eyebrow
+SERVO8_NEUTRAL = 0
+SERVO8_INDEX = 8
+
+#right eyebrow
+SERVO9_NEUTRAL = 0
+SERVO9_INDEX = 9
+
+#Parameters for max/min PWM impulses
+MIN_IMP  =[500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500]
+MAX_IMP  =[2500, 2500, 2500, 2500, 2500, 2500, 2500, 2500, 2500, 2500, 2500, 2500, 2500, 2500, 2500, 2500]
+
+
+
+# **** SERVO FUNCTIONS ****
+
+# initializes the servos by setting min and max PWM impulse sizes
+def initialize_servos():
+    global servos
+
+    for i in range(16):
+        servos.servo[i].set_pulse_width_range(MIN_IMP[i] , MAX_IMP[i])
+        servos.servo[i].actuation_range = 180
+
+#disables the servo channels after we're done using them
+#so they don't pull amperage
+def disable_channels(channel_indicies):
+    global servos
+    
+    for servo_num in channel_indicies:
+        servos.servo[servo_num].angle = None
+
+#moves a group of servos from their start position to their end position
+#all at the same time
+#servo_indices = array of nums for index of servo in servos list
+#servo_starts = starting angle for each servo
+#servo_ends = end angle for each servo
+#speed = delay in seconds between each 1 degree change in servo angle
+def move_servos(servo_indices, servo_starts, servo_ends, speed):
+    global servos
+    
+    num_servos = len(servo_indices)
+    
+    #find the maximum angle change
+    #also generate increasing/decreasing array
+    max_diff = 0
+    increasing = []
+    for i in range(num_servos):
+        diff = servo_starts[i] - servo_ends[i]
+        
+        #determine if increasing or decreasing
+        if diff < 0:
+            increasing.append(True)
+        else:
+            increasing.append(False)
+            
+        #check against max difference
+        diff = abs(diff)
+        if diff > max_diff:
+            max_diff = diff
+            
+    #generate array with angle value for each step for each servo
+    #start with starting angle
+    angle_arrs = [[servo_starts[0]]]
+    for i in range(1, num_servos):
+        angle_arrs.append([servo_starts[i]])
+        
+    print(angle_arrs)
+    
+    #for each servo...
+    for servo_num in range(num_servos):
+        #generate array of each angle timestep
+        #generate values until the servo with the greatest difference is reached
+        for angle_step in range(1, max_diff + 1):
+            #determine if we've already reached the end
+            if angle_arrs[servo_num][angle_step - 1] == servo_ends[servo_num]:
+                angle_arrs[servo_num].append(servo_ends[servo_num])
+                continue; #move on to next step
+            
+            #haven't reach the end, increment by 1
+            #determine increase or decrease
+            if increasing[servo_num]:
+                angle_arrs[servo_num].append(angle_arrs[servo_num][angle_step - 1] + 1)
+            else:
+                angle_arrs[servo_num].append(angle_arrs[servo_num][angle_step - 1] - 1)
+    
+    print(angle_arrs)
+    
+    #NOW we can acutally move the servos
+    #for each angle change in the generated arrays...
+    for angle_step in range(max_diff + 1):
+        #for each servo...
+        for servo_num in range(num_servos):
+            #update angle
+            target_servo = servo_indices[servo_num]
+            target_angle = angle_arrs[servo_num][angle_step]
+            servos.servo[target_servo].angle = target_angle
+            print(f"Servo {servo_indices[servo_num]} at angle {servos.servo[servo_indices[servo_num]].angle}")
+            #print(f"Target was {angle_arrs[servo_num][angle_step]}")
+        
+        #wait for the correct amount of time
+        time.sleep(speed)
+        
+#waves right arm
+def wave_right_arm():
+    global servos
+    
+    print("Starting wave! Hello!")
+    
+    #animation keyframe degrees
+    shoulder_flexation = 135 #arm rasied to wave
+    elbow_flexation_1 = 118 #starting point for wave
+    elbow_flexation_2 = 138 #ending point for wave
+    gripper_open = 102 #open position for gripper
+
+    #animation speeds, delay in seconds between each change in servo position
+    arm_raise_lower_speed = 0.015 #15 milliseconds
+    wave_speed = 0.010 #10 milliseconds
+    
+    print("Raising arm!")
+    
+    move_servos([SERVO1_INDEX, SERVO2_INDEX, SERVO3_INDEX],
+                [SERVO1_NEUTRAL, SERVO2_NEUTRAL, SERVO3_NEUTRAL],
+                [shoulder_flexation, elbow_flexation_1, gripper_open],
+                arm_raise_lower_speed)
+    
+    print("Arm raised")
+    
+    for _ in range(2):
+        print("Waving!")
+        
+        move_servos([SERVO2_INDEX],
+                    [elbow_flexation_1],
+                    [elbow_flexation_2],
+                    wave_speed)
+        
+        move_servos([SERVO0_INDEX],
+                    [elbow_flexation_2],
+                    [elbow_flexation_1],
+                    wave_speed)
+    
+    print("Lowering arms!")
+    
+    move_servos([SERVO1_INDEX, SERVO2_INDEX, SERVO3_INDEX],
+                [shoulder_flexation, elbow_flexation_1, gripper_open],
+                [SERVO1_NEUTRAL, SERVO2_NEUTRAL, SERVO3_NEUTRAL],
+                arm_raise_lower_speed)
+    
+    print("Done waving!")
+    
+    #disable servos used in this animation
+    disable_channels([SERVO1_INDEX, SERVO2_INDEX, SERVO3_INDEX])
+        
+        
+#raises arms to crab position and opens and gloses the grippers
+def crab():
+    global servos
+    
+    #speeds
+    arm_raise_lower_speed = 0.02
+    gripper_open_close = 0.01
+    
+    #number of times he opens and closes his claws
+    num_pinches = 4
+    
+    #animation keyframe degree values
+    right_shoulder_flexation = 66
+    right_elbow_flexation = 128
+    right_gripper_open = 102
+    left_shoulder_flexation = 138
+    left_elbow_flexation = 43
+    left_gripper_open = 160
+    
+    print("Raising arms")
+    
+    #use new fancy function to move servos IN UNISON
+    move_servos([SERVO1_INDEX, SERVO2_INDEX, SERVO5_INDEX, SERVO6_INDEX],
+                [SERVO1_NEUTRAL, SERVO2_NEUTRAL, SERVO5_NEUTRAL, SERVO6_NEUTRAL],
+                [right_shoulder_flexation, right_elbow_flexation, left_shoulder_flexation, left_elbow_flexation],
+                arm_raise_lower_speed)
+    
+    print("Beginning crab")
+    
+    for _ in range(num_pinches):
+        #open grippers
+        move_servos([SERVO3_INDEX, SERVO7_INDEX],
+                    [SERVO3_NEUTRAL, SERVO7_NEUTRAL],
+                    [right_gripper_open, left_gripper_open],
+                    gripper_open_close)
+        
+        #close grippers
+        move_servos([SERVO3_INDEX, SERVO7_INDEX],
+                    [right_gripper_open, left_gripper_open],
+                    [SERVO3_NEUTRAL, SERVO7_NEUTRAL],
+                    gripper_open_close)
+        
+        print("CRAB")
+    
+    print("lowering arms")
+    move_servos([SERVO1_INDEX, SERVO2_INDEX, SERVO5_INDEX, SERVO6_INDEX],
+                [right_shoulder_flexation, right_elbow_flexation, left_shoulder_flexation, left_elbow_flexation],
+                [SERVO1_NEUTRAL, SERVO2_NEUTRAL, SERVO5_NEUTRAL, SERVO6_NEUTRAL],
+                arm_raise_lower_speed)
+    
+    print("done crabbing!")
+    
+    #disable the channels we just used
+    disable_channels([SERVO1_INDEX, SERVO2_INDEX, SERVO3_INDEX, SERVO5_INDEX, SERVO6_INDEX, SERVO7_INDEX])
+
+#reaches right arm forward and opens gripper to receive gift
+def reach_right_arm():
+    global servos
+    
+    #animation keyframe degree positions
+    shoulder_rotation = 66 #rotate shoulder so arm can reach forwards
+    shoulder_flexation = 107 #raise arm a little
+    elbow_flexation = 78 #raise hand a little
+    gripper_open = 102 #open position for gripper
+    
+    #speed variables
+    arm_raise_lower_speed = 0.020 #20 milliseconds
+    gripper_open_close_speed = 0.010 #10 milliseconds
+    
+    print("Raising arm")
+    
+    move_servos([SERVO0_INDEX, SERVO1_INDEX, SERVO2_INDEX],
+                [SERVO0_NEUTRAL, SERVO1_NEUTRAL, SERVO2_NEUTRAL],
+                [shoulder_rotation, shoulder_flexation, elbow_flexation],
+                arm_raise_lower_speed)
+    
+    print("Arm raised")
+    
+    print("Opening gripper")
+    
+    move_servos([SERVO3_INDEX],
+                [SERVO3_NEUTRAL],
+                [gripper_open],
+                gripper_open_close_speed)
+    
+    print("Give me a treat!")
+    
+    #the next function called after this MUST BE retract_right_arm()
+
+#picks up where reach_right_arm left off 
+def retract_right_arm():
+    global servos
+    
+    #assumes arms start in raised position
+    #animation keyframe degree positions
+    shoulder_rotation = 66 #rotate shoulder so arm can reach forwards
+    shoulder_flexation = 107 #raise arm a little
+    elbow_flexation = 78 #raise hand a little
+    gripper_open = 102 #open position for gripper
+    
+    #speed variables
+    arm_raise_lower_speed = 0.020 #20 milliseconds
+    gripper_open_close_speed = 0.010 #10 milliseconds
+    pause = 1.5 #1.5 seconds
+    
+    print("Closing gripper")
+    
+    move_servos([SERVO3_INDEX],
+                [gripper_open],
+                [SERVO3_NEUTRAL],
+                gripper_open_close_speed)
+    
+    #pause
+    time.sleep(pause)
+    
+    print("Lowering arm")
+    
+    move_servos([SERVO0_INDEX, SERVO1_INDEX, SERVO2_INDEX],
+                [shoulder_rotation, shoulder_flexation, elbow_flexation],
+                [SERVO0_NEUTRAL, SERVO1_NEUTRAL, SERVO2_NEUTRAL],
+                arm_raise_lower_speed)
+    
+    print("Arm lowered")
+    
+    #disable servos
+    disable_channels([SERVO0_INDEX, SERVO1_INDEX, SERVO2_INDEX, SERVO3_INDEX])
+    
 
 # **** ANIMATION FUNCTIONS ****
 
@@ -27,11 +344,27 @@ def confused():
 
 def angry():
     print("Angry")
+    crab()
 
 def yes():
     print("Yes")
+    
+def greeting():
+    print("Greeting")
+    wave_right_arm()
+    
+def reach_forward():
+    print("Reaching forward")
+    reach_right_arm()
+    
+def reach_backward():
+    print("Reaching backwards")
+    retract_right_arm()
+    
+    
+#LED FUNCTIONS
 
-#function to turn off
+#function to turn off LED screens
 def all_LEDs_off():
     global pixels
     
@@ -39,46 +372,94 @@ def all_LEDs_off():
     
     pixels.show()
     
-#ends program execution by changing RUNNING variable used in main function
-def stop():
-    global RUNNING #change global variable
-    print("Stopping!")
-    RUNNING = False
 
-#beging to rotate torso by gently accelerating
-def begin_torso_rotation(going_right):
-    global m3_current_speed #change motor speed by altering global variable
+# **** MOTOR FUNCTIONS ****
+
+#looks at the global movement array and switches to correct drive function
+def update_drive_movement():
+    global drive_event_counter
+    global drive
     
+    #print(f"Drive movement counter: {drive_event_counter}")
+    
+    #check if we need to update current movement
+    #this will happen when a counter hits its max value
+    update = False
+    for i in range(0, 2):
+        if drive_event_counter[i] > drive_event_counter_max:
+            #no movement detected in this direction for too long
+            #check if this is new information
+            if drive_current_movement[i] != False:
+                #this is new, make update
+                update = True
+                drive_current_movement[i] = False
+                
+            #set counter back to max so numbers don't get too big
+            drive_event_counter[i] = drive_event_counter_max
+        elif drive_event_counter[i] < drive_event_counter_max:
+            #check if this is new information
+            if drive_current_movement[i] != True:
+                #this is new, make update
+                update = True
+                drive_current_movement[i] = True
+            
+    #if we made an update, call corresponding function
+    #drive_current_movement array is [Forward, Reverse, Left, Right]
+    if update:
+        if drive_current_movement == [False, False]:
+            stop_drive_motors()
+        elif drive_current_movement == [True, False]:
+            forward()
+        elif drive_current_movement == [False, True]:
+            reverse()
+
+def forward():
+    print("Moving forwards!")
+    
+    #move left motor forwards
+    GPIO.output(m1_in1_pin,GPIO.HIGH)
+    GPIO.output(m1_in2_pin,GPIO.LOW)
+    
+    #move right motor forwards
+    GPIO.output(m2_in1_pin,GPIO.HIGH)
+    GPIO.output(m2_in2_pin,GPIO.LOW)
+    
+def reverse():
+    print("Reversing!")
+    
+    #move left motor backwardss
+    GPIO.output(m1_in1_pin,GPIO.LOW)
+    GPIO.output(m1_in2_pin,GPIO.HIGH)
+    
+    #move right motor backwards
+    GPIO.output(m2_in1_pin,GPIO.LOW)
+    GPIO.output(m2_in2_pin,GPIO.HIGH)
+    
+def stop_drive_motors():
+    #stop left motor
+    GPIO.output(m1_in1_pin,GPIO.LOW)
+    GPIO.output(m1_in2_pin,GPIO.LOW)
+    
+    #stop right motor
+    GPIO.output(m2_in1_pin,GPIO.LOW)
+    GPIO.output(m2_in2_pin,GPIO.LOW)
+    
+    print("Stopping drive motors")
+
+#beging to rotate torso
+def begin_torso_rotation(going_right):
     #set direction pins correctly
     if going_right:
-        print("Accelerating to the right.")
+        print("Moving to the right.")
         GPIO.output(m3_in1_pin,GPIO.HIGH)
         GPIO.output(m3_in2_pin,GPIO.LOW)
     else:
-        print("Accelerating to the left.")
+        print("Moving to the left.")
         GPIO.output(m3_in1_pin,GPIO.LOW)
         GPIO.output(m3_in2_pin,GPIO.HIGH)
-        
-    #accelerate from current speed to 100% speed
-    while m3_current_speed < 100:
-        m3_current_speed += 1
-        m3_speed_pwm.ChangeDutyCycle(m3_current_speed)
-        time.sleep(0.005) #sleep for 5 milliseconds between each speed increase
-        
-    print("Fully accelerated!")
 
-
-#ends torso rotation by gradually decelerating
+#ends torso rotation
 def end_torso_rotation():
-    global m3_current_speed
-    print("Slowing down")
-    
-    #slow down from current speed to 25% speed
-    while m3_current_speed > 25:
-        m3_current_speed -= 1
-        m3_speed_pwm.ChangeDutyCycle(m3_current_speed)
-        time.sleep(0.005) #sleep for 5 milliseconds between each speed increase
-    
     #stop motor
     GPIO.output(m3_in1_pin,GPIO.LOW)
     GPIO.output(m3_in2_pin,GPIO.LOW)
@@ -87,6 +468,26 @@ def end_torso_rotation():
     
 
 # **** MAIN FUNCTIONS ****
+
+#ends program execution by changing RUNNING variable used in main function
+def stop():
+    global RUNNING #change global variable
+    print("Stopping!")
+    RUNNING = False
+    
+    #turn off LEDs
+    
+    #turn off all motors
+    end_torso_rotation()
+    stop_drive_motors()
+    
+    #disable all servo channels
+    disable_channels([SERVO0_INDEX, SERVO1_INDEX, SERVO2_INDEX, SERVO3_INDEX,
+                      SERVO4_INDEX, SERVO5_INDEX, SERVO6_INDEX, SERVO7_INDEX])
+    
+    #cleanup GPIO
+    GPIO.cleanup()
+
 
 #switches modes between performance or drive
 def switch_mode(performance):
@@ -104,13 +505,14 @@ def switch_mode(performance):
 #from the controller's computer and calls functions
 #to trigger the appropriate animations
 def performance_mode_loop():
+    print("Performance mode loop!")
     #check if new message received from Raspberry Pi
     try:
         raw_msg = connection.recv(1024)
     except socket.timeout:
         #socket timed out, no new message
         #return back to main function for next loop
-        return
+        pass
     else:
         #message found, process message
         msg = raw_msg.decode("utf-8")
@@ -134,33 +536,87 @@ def performance_mode_loop():
             begin_torso_rotation(going_right=False)
         elif msg == "ts":
             end_torso_rotation()
+        elif msg == "g":
+            greeting()
+        elif msg == "rf":
+            reach_forward()
+        elif msg == "rb":
+            reach_backward()
         else:
             connection.send(bytes("I don't know what you want from me!", "utf-8"))
             
-        #check for message from Driver to switch to drive mode
+    #check for message from Driver to switch to drive mode
+    for event in joycon.read_loop():
+        print("checking joycons")
+        #filter by event type
+        if event.type == ecodes.EV_KEY:
+            #check which button was pressed
+            if(event.code == 305):
+                #X button pressed, stop!!
+                stop()
+            elif(event.code == 308 and event.value == 1):
+                #B button pressed, switch to drive mode
+                switch_mode(performance=False)
+        break
 
 
 #reads input coming from JoyCon
 def drive_mode_loop():
+    print("Drive mode loop!")
+    t0 = time.time()
     #check for input from JoyCon
+    #use evdec function to continuously read joycon inputs
+    for event in joycon.read_loop():
+        #filter by event type
+        if event.type == ecodes.EV_KEY:
+            #check which button was pressed
+            if(event.code == 304 and event.value == 1):
+                #A button pressed, switch to performance mode
+                switch_mode(performance=True)
+                break
+            elif(event.code == 305 and event.value ==1):
+                #X button pressed, stop!!
+                stop()
+                break
+        elif event.type == ecodes.EV_ABS:
+            #filter joystick events
+            #filter by left/right or up/down
+            if(event.code == UPDOWN_CODE):
+                #filter by up or down and value
+                if(event.value < JOYCON_FORWARD_CUTOFF):
+                    drive_event_counter[COUNTER_F_INDEX] = 0
+                    
+                    #swiftly disable backward movement
+                    drive_event_counter[COUNTER_B_INDEX] = drive_event_counter_max + 1
+                elif(event.value > JOYCON_BACKWARD_CUTOFF):
+                    drive_event_counter[COUNTER_B_INDEX] = 0
+                    
+                    #swiftly disable forward movement
+                    drive_event_counter[COUNTER_F_INDEX] = drive_event_counter_max + 1
+                    
+        #update time
+        dt = time.time()-t0
+        t0 = time.time()
+        for i in range(0, 2):
+            drive_event_counter[i] += dt
+                    
+        update_drive_movement()
     
-    #call appropriate function
-    
-    #check for Performance Controller command to switch back to performance mode
-    #check if new message received from Raspberry Pi
-    try:
-        raw_msg = connection.recv(1024)
-    except socket.timeout:
-        #socket timed out, no new message
-        #return back to main function for next loop
-        return
-    else:
-        #message found, process message
-        msg = raw_msg.decode("utf-8")
-        
-        #enter performance mode if that was the command
-        if msg == "p":
-            switch_mode(performance=True)
+#     #check for Performance Controller command to switch back to performance mode
+#     #check if new message received from Raspberry Pi
+#     try:
+#         raw_msg = connection.recv(1024)
+#     except socket.timeout:
+#         #socket timed out, no new message
+#         #return back to main function for next loop
+#         return
+#     else:
+#         #message found, process message
+#         msg = raw_msg.decode("utf-8")
+#         
+#         #enter performance mode if that was the command
+#         if msg == "p":
+#             switch_mode(performance=True)
         
         
 def main():
@@ -180,7 +636,9 @@ GPIO.setmode(GPIO.BCM) #Use BCM numerotation mode
 
 #PCA9685 Servo Driver
 #Connected to SDA and SCL pins
-#kit = ServoKit(channels=16)
+servos = ServoKit(channels=16)
+
+initialize_servos()
 
 print("Servo driver initialized.")
 
@@ -195,27 +653,27 @@ GPIO.setup(m1_speed_pin,GPIO.OUT)
 GPIO.output(m1_in1_pin,GPIO.LOW)
 GPIO.output(m1_in2_pin,GPIO.LOW)
 m1_speed_pwm = GPIO.PWM(m1_speed_pin,1000)
-m1_speed_pwm.start(25) #default speed is 25% of duty cycle (low)
+m1_speed_pwm.start(100) #default speed is 100% of duty cycle
 
 print("Motor 1 initialized.")
 
-m2_in1_pin = 10 #forward
-m2_in2_pin = 9 #backward
-m2_speed_pin = 11
+m2_in1_pin = 23 #forward
+m2_in2_pin = 24 #backward
+m2_speed_pin = 25
 GPIO.setup(m2_in1_pin,GPIO.OUT)
 GPIO.setup(m2_in2_pin,GPIO.OUT)
 GPIO.setup(m2_speed_pin,GPIO.OUT)
 GPIO.output(m2_in1_pin,GPIO.LOW)
 GPIO.output(m2_in2_pin,GPIO.LOW)
 m2_speed_pwm = GPIO.PWM(m2_speed_pin,1000)
-m2_speed_pwm.start(25) #default speed is 25% of duty cycle (low)
+m2_speed_pwm.start(100) #default speed is 100% of duty cycle
 
 print("Motor 2 initialized.")
 
 #Second L298N motor driver
 #Connected to motor 3 (torso rotation motor)
-m3_in1_pin = 5
-m3_in2_pin = 6
+m3_in1_pin = 5 #high = right
+m3_in2_pin = 6 #high = left
 m3_speed_pin = 26
 GPIO.setup(m3_in1_pin,GPIO.OUT)
 GPIO.setup(m3_in2_pin,GPIO.OUT)
@@ -223,7 +681,7 @@ GPIO.setup(m3_speed_pin,GPIO.OUT)
 GPIO.output(m3_in1_pin,GPIO.LOW)
 GPIO.output(m3_in2_pin,GPIO.LOW)
 m3_speed_pwm = GPIO.PWM(m3_speed_pin,1000)
-m3_current_speed = 25 #default speed is 25% of duty cycle (low)
+m3_current_speed = 100 #default speed is 100% of duty cycle
 m3_speed_pwm.start(m3_current_speed)
 
 print("Motor 3 initialized.")
@@ -252,12 +710,35 @@ print("LED screens initialized.")
 print("Finished initializing GPIO connections!")
 
 
+# **** BLUETOOTH SETUP ****
+print("Beginning setup of Bluetooth device.")
+
+#create object to store joycon data
+joycon = InputDevice(JOYCON_PATH)
+
+#joystick movement tracking
+#number of second where movement IS NOT detected before shutting off
+drive_event_counter_max = 0.5
+#tracks consecutive seconds where [forward, backward] is NOT detected
+drive_event_counter = [drive_event_counter_max, drive_event_counter_max]
+COUNTER_F_INDEX = 0
+COUNTER_B_INDEX = 1
+drive_current_movement = [False, False] #[forward, backward]
+#unsigned integers to compare with evdev objects variables
+UPDOWN_CODE = 2
+
+#cutoff points for what counts as a joystick event
+JOYCON_FORWARD_CUTOFF = -900
+JOYCON_BACKWARD_CUTOFF = 900
+
+#print out info at start
+print(joycon)
+
+print("Bluetooth setup complete!")
+
+
 # **** SOCKET SETUP ****
 print("Beginning socket setup.")
-
-#constants for IP addresses and port number
-RASPI_IP = '192.168.0.180'
-PORT_NUM = 14359
 
 #create socket object for self
 rasPiSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -279,18 +760,9 @@ connection.settimeout(0.25)
 #print IP of controller computer
 print(f"A connection to controller with IP {address} has been establised!")
 
-
-# **** BLUETOOTH SETUP ****
-print("Beginning setup of Bluetooth device.")
-
-print("Bluetooth setup complete!")
-
-
 print("Setup complete! Ready to receive commands!")
 
 # **** END SETUP ****
-
-
 
 #start listening for input
 main()

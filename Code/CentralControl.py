@@ -16,7 +16,7 @@ PERFORMANCE = True #use to switch between performance and drive mode
 JOYCON_PATH = '/dev/input/event11'
 #constants for IP addresses and port number
 RASPI_IP = '192.168.0.180'
-PORT_NUM = 14359
+PORT_NUM = 14352
 
 #**** SERVO NEUTRAL POSITIONS ****
 #resting position in degrees for each servo
@@ -49,13 +49,25 @@ SERVO6_INDEX = 6
 SERVO7_NEUTRAL = 179 #down
 SERVO7_INDEX = 7
 
-#left eyebrow
-SERVO8_NEUTRAL = 0
+#head tilt
+SERVO8_NEUTRAL = 45 #up = tilt head left, down = tilt head right
 SERVO8_INDEX = 8
-
-#right eyebrow
+#head nod
 SERVO9_NEUTRAL = 0
 SERVO9_INDEX = 9
+#need to track eyebrow positions to switch between any 2 facial expressions
+servo8_current_pos = 45
+servo9_current_pos = 0
+
+#right eyebrow
+SERVO10_NEUTRAL = 90 #down = tilt eyebrow down
+SERVO10_INDEX = 10
+#left eyebrow
+SERVO11_NEUTRAL = 90 #up = tilt eyebrow down
+SERVO11_INDEX = 11
+#need to track eyebrow positions to switch between any 2 facial expressions
+servo10_current_pos = 90
+servo11_current_pos = 90
 
 #Parameters for max/min PWM impulses
 MIN_IMP  =[500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500]
@@ -152,6 +164,14 @@ def move_servos(servo_indices, servo_starts, servo_ends, speed):
         #wait for the correct amount of time
         time.sleep(speed)
         
+#tilts eyebrows down like he's angry
+def angry_eyebrows():
+    global servo8_current_pos
+    global servo9_current_pos
+    
+    #animation keyframes
+    right_eyebrow_down = 120
+        
 #waves right arm
 def wave_right_arm():
     global servos
@@ -201,7 +221,8 @@ def wave_right_arm():
     
     #disable servos used in this animation
     disable_channels([SERVO1_INDEX, SERVO2_INDEX, SERVO3_INDEX])
-        
+    
+
         
 #raises arms to crab position and opens and gloses the grippers
 def crab():
@@ -315,6 +336,8 @@ def retract_right_arm():
                 [SERVO3_NEUTRAL],
                 gripper_open_close_speed)
     
+    print("Pausing")
+    
     #pause
     time.sleep(pause)
     
@@ -330,20 +353,94 @@ def retract_right_arm():
     #disable servos
     disable_channels([SERVO0_INDEX, SERVO1_INDEX, SERVO2_INDEX, SERVO3_INDEX])
     
+#drillbit raises both arms, one holding diploma
+#then he releases the diploma while mimicing a handshake
+#then he lowers his arms
+def give_diploma():
+    global servos
+    
+    #animation keyframe angles
+    right_shoulder_rotation = 66
+    right_shoulder_flexation = 107
+    right_elbow_flexation_1 = 78
+    right_elbow_flexation_2 = 108
+    left_shoulder_rotation = 131
+    left_shoulder_flexation = 98
+    left_elbow_flexation = 93
+    left_gripper_open = 160
+    
+    #speeds
+    arm_raise_lower_speed = 0.02
+    handshake_speed = 0.01
+    gripper_open_close_speed = 0.01
+    pause = 2
+    
+    print("Raising arms")
+    
+    move_servos([SERVO0_INDEX, SERVO1_INDEX, SERVO2_INDEX, SERVO4_INDEX, SERVO5_INDEX, SERVO6_INDEX],
+                [SERVO0_NEUTRAL, SERVO1_NEUTRAL, SERVO2_NEUTRAL, SERVO4_NEUTRAL, SERVO5_NEUTRAL, SERVO6_NEUTRAL],
+                [right_shoulder_rotation, right_shoulder_flexation, right_elbow_flexation_1, left_shoulder_rotation, left_shoulder_flexation, left_elbow_flexation],
+                arm_raise_lower_speed)
+    
+    print("Shaking hands!")
+    
+    for _ in range(2):
+        #shake hand up
+        move_servos([SERVO2_INDEX],
+                    [right_elbow_flexation_1],
+                    [right_elbow_flexation_2],
+                    handshake_speed)
+        
+        #shake hand down
+        move_servos([SERVO2_INDEX],
+                    [right_elbow_flexation_2],
+                    [right_elbow_flexation_1],
+                    handshake_speed)
+        
+    print("Giving diploma!")
+    
+    move_servos([SERVO7_INDEX],
+                [SERVO7_NEUTRAL],
+                [left_gripper_open],
+                gripper_open_close_speed)
+    
+    print("Pausing for picture")
+    
+    time.sleep(pause)
+    
+    print("Lowering arms")
+    
+    move_servos([SERVO0_INDEX, SERVO1_INDEX, SERVO2_INDEX, SERVO4_INDEX, SERVO5_INDEX, SERVO6_INDEX, SERVO7_INDEX],
+                [right_shoulder_rotation, right_shoulder_flexation, right_elbow_flexation_1, left_shoulder_rotation, left_shoulder_flexation, left_elbow_flexation, left_gripper_open],
+                [SERVO0_NEUTRAL, SERVO1_NEUTRAL, SERVO2_NEUTRAL, SERVO4_NEUTRAL, SERVO5_NEUTRAL, SERVO6_NEUTRAL, SERVO7_NEUTRAL],
+                arm_raise_lower_speed)
+    
+    print("Done! Congratulations on graduating from UCF!")
+    
+        
+    
+# **** END SERVO FUNCTIONS
 
 # **** ANIMATION FUNCTIONS ****
 
+def neutral():
+    print("Neutral")
+    neutral_eyes()
+
 def happy():
     print("Happy")
+    happy_eyes()
     
 def sad():
     print("Sad")
+    sad_eyes()
     
 def confused():
     print("Confused")
 
 def angry():
     print("Angry")
+    angry_eyes()
     crab()
 
 def yes():
@@ -371,7 +468,186 @@ def all_LEDs_off():
     pixels.fill((0, 0, 0))
     
     pixels.show()
+
+#displays yellow, circular eyes with pupils
+def neutral_eyes():
+    #define yellow color
+    r = 255
+    g = 255
+    b = 0
     
+    #define which LEDs should be lit or not
+    neutral_list = [
+          (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0),
+          (0,0,0), (0,0,0), (r,g,b), (r,g,b), (r,g,b), (r,g,b), (0,0,0), (0,0,0),
+          (0,0,0), (r,g,b), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (r,g,b), (0,0,0),
+          (0,0,0), (r,g,b), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (r,g,b), (0,0,0),
+          (0,0,0), (r,g,b), (r,g,b), (r,g,b), (0,0,0), (0,0,0), (r,g,b), (0,0,0),
+          (0,0,0), (r,g,b), (r,g,b), (r,g,b), (r,g,b), (0,0,0), (r,g,b), (0,0,0),
+          (0,0,0), (r,g,b), (r,g,b), (r,g,b), (r,g,b), (0,0,0), (r,g,b), (0,0,0),
+          (0,0,0), (0,0,0), (r,g,b), (r,g,b), (r,g,b), (r,g,b), (0,0,0), (0,0,0),
+          (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0),
+          (0,0,0), (0,0,0), (r,g,b), (r,g,b), (r,g,b), (r,g,b), (0,0,0), (0,0,0),
+          (0,0,0), (r,g,b), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (r,g,b), (0,0,0),
+          (0,0,0), (r,g,b), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (r,g,b), (0,0,0),
+          (0,0,0), (r,g,b), (0,0,0), (0,0,0), (r,g,b), (r,g,b), (r,g,b), (0,0,0),
+          (0,0,0), (r,g,b), (0,0,0), (r,g,b), (r,g,b), (r,g,b), (r,g,b), (0,0,0),
+          (0,0,0), (r,g,b), (0,0,0), (r,g,b), (r,g,b), (r,g,b), (r,g,b), (0,0,0),
+          (0,0,0), (0,0,0), (r,g,b), (r,g,b), (r,g,b), (r,g,b), (0,0,0), (0,0,0)
+        ]
+    
+    #turn all the pixels off before switching to the new eyes
+    all_LEDs_off()
+    
+    #write correct color to each LED
+    for i in range(0, 127):
+        pixels[i] = neutral_list[i]
+        
+    pixels.show()
+
+#displays green, half moon happy eyes
+def happy_eyes():
+    #define green color
+    r = 0
+    g = 255
+    b = 0
+    
+    #define which LEDS should be lit or not
+    super_happy_list = [
+        (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0),
+        (0,0,0), (0,0,0), (r,g,b), (r,g,b), (r,g,b), (r,g,b), (0,0,0), (0,0,0),
+        (0,0,0), (r,g,b), (r,g,b), (r,g,b), (r,g,b), (r,g,b), (r,g,b), (0,0,0),
+        (0,0,0), (r,g,b), (r,g,b), (0,0,0), (0,0,0), (r,g,b), (r,g,b), (0,0,0),
+        (0,0,0), (r,g,b), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (r,g,b), (0,0,0),
+        (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0),
+        (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0),
+        (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0),
+        (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0),
+        (0,0,0), (0,0,0), (r,g,b), (r,g,b), (r,g,b), (r,g,b), (0,0,0), (0,0,0),
+        (0,0,0), (r,g,b), (r,g,b), (r,g,b), (r,g,b), (r,g,b), (r,g,b), (0,0,0),
+        (0,0,0), (r,g,b), (r,g,b), (0,0,0), (0,0,0), (r,g,b), (r,g,b), (0,0,0),
+        (0,0,0), (r,g,b), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (r,g,b), (0,0,0),
+        (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0),
+        (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0),
+        (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0),
+        ]
+    
+    #turn all the pixels off before switching to the new eyes
+    all_LEDs_off()
+    
+    #write vlaue to each LED
+    for i in range(0, 127):
+        pixels[i] = super_happy_list[i]
+        
+    pixels.show()
+
+#disaplys blue, downturned sad eyes
+def sad_eyes():
+    #define dark purple color
+    r = 0
+    g = 51
+    b = 204
+    
+    #define which LEDs should be lit and which should not
+    sad_list = [
+            (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0),
+            (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0),
+            (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0),
+            (0,0,0), (r,g,b), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (r,g,b), (0,0,0),
+            (0,0,0), (r,g,b), (r,g,b), (0,0,0), (0,0,0), (r,g,b), (r,g,b), (0,0,0),
+            (0,0,0), (0,0,0), (r,g,b), (r,g,b), (r,g,b), (r,g,b), (0,0,0), (0,0,0),
+            (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0),
+            (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0),
+            (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0),
+            (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0),
+            (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0),
+            (0,0,0), (r,g,b), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (r,g,b), (0,0,0),
+            (0,0,0), (r,g,b), (r,g,b), (0,0,0), (0,0,0), (r,g,b), (r,g,b), (0,0,0),
+            (0,0,0), (0,0,0), (r,g,b), (r,g,b), (r,g,b), (r,g,b), (0,0,0), (0,0,0),
+            (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0),
+            (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0)
+        ]
+    
+    #turn all the pixels off before switching to the new eyes
+    all_LEDs_off()
+    
+    #write values to LED pixels
+    for i in range(0, 127):
+        pixels[i] = sad_list[i]
+    
+    pixels.show()
+
+#displays white, wide shocked eyes
+def shocked_eyes():
+    #define white color
+    r = 255
+    g = 255
+    b = 255
+    
+    #define which pixels should be lit or not
+    shocked_list = [
+            (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0),
+            (0,0,0), (0,0,0), (r,g,b), (r,g,b), (r,g,b), (r,g,b), (0,0,0), (0,0,0),
+            (0,0,0), (r,g,b), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (r,g,b), (0,0,0),
+            (0,0,0), (r,g,b), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (r,g,b), (0,0,0),
+            (0,0,0), (r,g,b), (0,0,0), (r,g,b), (r,g,b), (0,0,0), (r,g,b), (0,0,0),
+            (0,0,0), (r,g,b), (0,0,0), (r,g,b), (r,g,b), (0,0,0), (r,g,b), (0,0,0),
+            (0,0,0), (r,g,b), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (r,g,b), (0,0,0),
+            (0,0,0), (0,0,0), (r,g,b), (r,g,b), (r,g,b), (r,g,b), (0,0,0), (0,0,0),
+            (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0),
+            (0,0,0), (0,0,0), (r,g,b), (r,g,b), (r,g,b), (r,g,b), (0,0,0), (0,0,0),
+            (0,0,0), (r,g,b), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (r,g,b), (0,0,0),
+            (0,0,0), (r,g,b), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (r,g,b), (0,0,0),
+            (0,0,0), (r,g,b), (0,0,0), (r,g,b), (r,g,b), (0,0,0), (r,g,b), (0,0,0),
+            (0,0,0), (r,g,b), (0,0,0), (r,g,b), (r,g,b), (0,0,0), (r,g,b), (0,0,0),
+            (0,0,0), (r,g,b), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (r,g,b), (0,0,0),
+            (0,0,0), (0,0,0), (r,g,b), (r,g,b), (r,g,b), (r,g,b), (0,0,0), (0,0,0)
+        ]
+    
+    #turn all the pixels off before switching to the new eyes
+    all_LEDs_off()
+    
+    #write values to pixels
+    for i in range(0, 127):
+        pixels[i] = shocked_list[i]
+    
+    pixels.show()
+
+#displays red, angry eyes
+def angry_eyes():
+    #define red color
+    r = 255
+    g = 0
+    b = 0
+    
+    #define which pixels should be lit and which should not
+    angry_list = [
+            (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0),
+            (0,0,0), (0,0,0), (0,0,0), (0,0,0), (r,g,b), (r,g,b), (0,0,0), (0,0,0),
+            (0,0,0), (0,0,0), (0,0,0), (r,g,b), (0,0,0), (0,0,0), (r,g,b), (0,0,0),
+            (0,0,0), (0,0,0), (r,g,b), (0,0,0), (0,0,0), (0,0,0), (r,g,b), (0,0,0),
+            (0,0,0), (r,g,b), (r,g,b), (r,g,b), (0,0,0), (0,0,0), (r,g,b), (0,0,0),
+            (0,0,0), (r,g,b), (r,g,b), (r,g,b), (r,g,b), (0,0,0), (r,g,b), (0,0,0),
+            (0,0,0), (r,g,b), (r,g,b), (r,g,b), (r,g,b), (0,0,0), (r,g,b), (0,0,0),
+            (0,0,0), (0,0,0), (r,g,b), (r,g,b), (r,g,b), (r,g,b), (0,0,0), (0,0,0),
+            (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0), (0,0,0),
+            (0,0,0), (0,0,0), (r,g,b), (r,g,b), (0,0,0), (0,0,0), (0,0,0), (0,0,0),
+            (0,0,0), (r,g,b), (0,0,0), (0,0,0), (r,g,b), (0,0,0), (0,0,0), (0,0,0),
+            (0,0,0), (r,g,b), (0,0,0), (0,0,0), (0,0,0), (r,g,b), (0,0,0), (0,0,0),
+            (0,0,0), (r,g,b), (0,0,0), (0,0,0), (r,g,b), (r,g,b), (r,g,b), (0,0,0),
+            (0,0,0), (r,g,b), (0,0,0), (r,g,b), (r,g,b), (r,g,b), (r,g,b), (0,0,0),
+            (0,0,0), (r,g,b), (0,0,0), (r,g,b), (r,g,b), (r,g,b), (r,g,b), (0,0,0),
+            (0,0,0), (r,g,b), (r,g,b), (r,g,b), (r,g,b), (r,g,b), (0,0,0), (0,0,0)
+        ]
+    
+    #turn all the pixels off before switching to the new eyes
+    all_LEDs_off()
+    
+    #write values to pixels
+    for i in range(0, 127):
+        pixels[i] = angry_list[i]
+    
+    pixels.show()
 
 # **** MOTOR FUNCTIONS ****
 
@@ -476,6 +752,7 @@ def stop():
     RUNNING = False
     
     #turn off LEDs
+    all_LEDs_off()
     
     #turn off all motors
     end_torso_rotation()
@@ -505,7 +782,7 @@ def switch_mode(performance):
 #from the controller's computer and calls functions
 #to trigger the appropriate animations
 def performance_mode_loop():
-    print("Performance mode loop!")
+    #print("Performance mode loop!")
     #check if new message received from Raspberry Pi
     try:
         raw_msg = connection.recv(1024)
@@ -542,12 +819,14 @@ def performance_mode_loop():
             reach_forward()
         elif msg == "rb":
             reach_backward()
+        elif msg == "d":
+            give_diploma()
         else:
             connection.send(bytes("I don't know what you want from me!", "utf-8"))
             
     #check for message from Driver to switch to drive mode
     for event in joycon.read_loop():
-        print("checking joycons")
+        #print("checking joycons")
         #filter by event type
         if event.type == ecodes.EV_KEY:
             #check which button was pressed
@@ -620,6 +899,10 @@ def drive_mode_loop():
         
         
 def main():
+    #start by setting the eyes to neutral
+    all_LEDs_off()
+    neutral_eyes()
+    
     #loop until RUNNING variable is changed to false
     #RUNNING can be deactivated by a kill command from the controller
     while(RUNNING):

@@ -50,14 +50,16 @@ SERVO7_NEUTRAL = 179 #down
 SERVO7_INDEX = 7
 
 #head tilt
+#NEVER DO SERVO 8 LESS THAN 5
 SERVO8_NEUTRAL = 45 #up = tilt head left, down = tilt head right
 SERVO8_INDEX = 8
 #head nod
-SERVO9_NEUTRAL = 0
+#SERVO 9 SHOULD NEVER GO BELOW 90
+SERVO9_NEUTRAL = 180
 SERVO9_INDEX = 9
 #need to track eyebrow positions to switch between any 2 facial expressions
 servo8_current_pos = 45
-servo9_current_pos = 0
+servo9_current_pos = 180
 
 #right eyebrow
 SERVO10_NEUTRAL = 90 #down = tilt eyebrow down
@@ -166,11 +168,28 @@ def move_servos(servo_indices, servo_starts, servo_ends, speed):
         
 #tilts eyebrows down like he's angry
 def angry_eyebrows():
-    global servo8_current_pos
-    global servo9_current_pos
+    global servo10_current_pos
+    global servo11_current_pos
     
     #animation keyframes
-    right_eyebrow_down = 120
+    right_eyebrow_down = 60
+    left_eyebrow_down = 120
+    
+    #speed
+    eyebrow_speed = 0.005
+    
+    print("Moving eyebrows to angry")
+    
+    move_servos([SERVO10_INDEX, SERVO11_INDEX],
+                [servo10_current_pos, servo11_current_pos],
+                [right_eyebrow_down, left_eyebrow_down],
+                eyebrow_speed)
+    
+    print("Eyebrows angry")
+    
+    #update global variables
+    servo10_current_pos = right_eyebrow_down
+    servo11_current_pos = left_eyebrow_down
         
 #waves right arm
 def wave_right_arm():

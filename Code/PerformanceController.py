@@ -12,8 +12,10 @@ import keyboard
 
 #constants for IP addresses and port number
 RASPI_IP = '192.168.0.180'
-PORT_NUM = 14359
+PORT_NUM = 14352
 
+torso_moving_right = False
+torso_moving_left = False
 
 #sets up keyboard listener objects used to send commands
 def link_keys():
@@ -46,6 +48,18 @@ def link_keys():
 
     #link left arrow key up to stop torso
     keyboard.on_release_key("left", action_torso_stop)
+
+    #link g key to greeting
+    keyboard.on_press_key("g", action_greeting)
+
+    #link r key to reaching forward
+    keyboard.on_press_key("r", action_reach_forward)
+
+    #link t key to reaching backwards
+    keyboard.on_press_key("t", action_reach_back)
+
+    #link d key to giving diploma
+    keyboard.on_press_key("d", action_give_diploma)
 
 ######### ACTION FUNCTIONS #########
 
@@ -84,18 +98,57 @@ def action_stop(key_event):
 
 #sends rotate torso right command to Raspberry Pi
 def action_torso_right(key_event):
-    print("\nmoving torso right!")
-    connection.send(bytes("tr", "utf-8"))
+    global torso_moving_right
+    global torso_moving_left
+    
+    #only send the signal if the torso isn't already moving
+    if not torso_moving_right:
+        torso_moving_right = True
+        print("\nmoving torso right!")
+        connection.send(bytes("tr", "utf-8"))
 
 #sends rotate torso left command to Raspberry Pi
 def action_torso_left(key_event):
-    print("\nmoving torso left!")
-    connection.send(bytes("tl", "utf-8"))
+    global torso_moving_right
+    global torso_moving_left
+
+    #only send the signal if the torso isn't already moving
+    if not torso_moving_left:
+        torso_moving_left = True
+        print("\nmoving torso left!")
+        connection.send(bytes("tl", "utf-8"))
 
 #sends stop rotating torso command to Raspberry Pi
 def action_torso_stop(key_event):
+    global torso_moving_right
+    global torso_moving_left
+
+    torso_moving_right = False
+    torso_moving_left = False
+
     print("\nstopping torso rotation!")
     connection.send(bytes("ts", "utf-8"))
+
+#sends greeting command to Raspberry Pi
+def action_greeting(key_event):
+    print("\ngreeting!")
+    connection.send(bytes("g", "utf-8"))
+
+#sends reach forwards command to Raspberry Pi
+def action_reach_forward(key_event):
+    print("\nreaching out!")
+    connection.send(bytes("rf", "utf-8"))
+
+#sends reach backwards command to Raspberry Pi
+def action_reach_back(key_event):
+    print("\nreaching back!")
+    connection.send(bytes("rb", "utf-8"))
+
+#sends give diploma command to Raspberry Pi
+def action_give_diploma(key_event):
+    print("\ngiving diploma!")
+    connection.send(bytes("d", "utf-8"))
+
 
 ######### MESSAGE PROCESSING FUNCTIONS #########
 

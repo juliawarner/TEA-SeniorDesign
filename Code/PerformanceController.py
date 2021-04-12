@@ -12,7 +12,7 @@ import keyboard
 
 #constants for IP addresses and port number
 RASPI_IP = '192.168.0.180'
-PORT_NUM = 14352
+PORT_NUM = 14357
 
 torso_moving_right = False
 torso_moving_left = False
@@ -60,6 +60,12 @@ def link_keys():
 
     #link d key to giving diploma
     keyboard.on_press_key("d", action_give_diploma)
+
+    #link n key to making neutral face
+    keyboard.on_press_key("n", action_neutral)
+
+    #link q key to homing the servos
+    keyboard.on_press_key("q", action_home_servos)
 
 ######### ACTION FUNCTIONS #########
 
@@ -148,6 +154,16 @@ def action_reach_back(key_event):
 def action_give_diploma(key_event):
     print("\ngiving diploma!")
     connection.send(bytes("d", "utf-8"))
+
+#sends neutral command to Raspberry Pi
+def action_neutral(key_event):
+    print("\nneutral!")
+    connection.send(bytes("n", "utf-8"))
+
+#sends home servos to Raspberry Pi
+def action_home_servos(key_event):
+    print("\nhoming servos!!")
+    connection.send(bytes("q", "utf-8"))
 
 
 ######### MESSAGE PROCESSING FUNCTIONS #########

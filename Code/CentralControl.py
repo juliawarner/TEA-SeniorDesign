@@ -13,10 +13,11 @@ from evdev import InputDevice, categorize, ecodes #used for JoyCon Events
 # **** GLOBAL VARIABLES ****
 RUNNING = True
 PERFORMANCE = True #use to switch between performance and drive mode
-JOYCON_PATH = '/dev/input/event11'
+JOYCON_PATH = '/dev/input/event1'
 #constants for IP addresses and port number
 RASPI_IP = '192.168.0.180'
-PORT_NUM = 14352
+PORT_NUM = 14357
+MOVE_TO_NEUTRAL_DELAY = 1 #wait in seconds used when homing servos
 
 #**** SERVO NEUTRAL POSITIONS ****
 #resting position in degrees for each servo
@@ -64,7 +65,7 @@ servo9_current_pos = 180
 #right eyebrow
 SERVO10_NEUTRAL = 90 #down = tilt eyebrow down
 SERVO10_INDEX = 10
-#left eyebrow
+#left eyebrow 
 SERVO11_NEUTRAL = 90 #up = tilt eyebrow down
 SERVO11_INDEX = 11
 #need to track eyebrow positions to switch between any 2 facial expressions
@@ -165,7 +166,75 @@ def move_servos(servo_indices, servo_starts, servo_ends, speed):
         
         #wait for the correct amount of time
         time.sleep(speed)
-        
+
+#moves each servo one at a time to it's pre-determined neutral position
+def move_to_neutral():
+    #specify we will be editing global variable
+    global servos
+
+    #moves all servos to neutral position 1 at a time, with time in between to settle
+    print("Setting servos to neutral position")
+
+    servos.servo[SERVO0_INDEX].angle = SERVO0_NEUTRAL
+    time.sleep(MOVE_TO_NEUTRAL_DELAY)
+    print("Servo 0 at neutral position")
+    servos.servo[SERVO0_INDEX].angle = None #disable channel
+
+    servos.servo[SERVO1_INDEX].angle = SERVO1_NEUTRAL
+    time.sleep(MOVE_TO_NEUTRAL_DELAY)
+    print("Servo 1 at neutral position")
+    servos.servo[SERVO1_INDEX].angle = None #disable channel
+
+    servos.servo[SERVO2_INDEX].angle = SERVO2_NEUTRAL
+    time.sleep(MOVE_TO_NEUTRAL_DELAY)
+    print("Servo 2 at neutral position")
+    servos.servo[SERVO2_INDEX].angle = None #disable channel
+
+    servos.servo[SERVO3_INDEX].angle = SERVO3_NEUTRAL
+    time.sleep(MOVE_TO_NEUTRAL_DELAY)
+    print("Servo 3 at neutral position")
+    servos.servo[SERVO3_INDEX].angle = None #disable channel
+    
+    servos.servo[SERVO4_INDEX].angle = SERVO4_NEUTRAL
+    time.sleep(MOVE_TO_NEUTRAL_DELAY)
+    print("Servo 4 at neutral position")
+    servos.servo[SERVO4_INDEX].angle = None #disable channel
+    
+    servos.servo[SERVO5_INDEX].angle = SERVO5_NEUTRAL
+    time.sleep(MOVE_TO_NEUTRAL_DELAY)
+    print("Servo 5 at neutral position")
+    servos.servo[SERVO5_INDEX].angle = None #disable channel
+    
+    servos.servo[SERVO6_INDEX].angle = SERVO6_NEUTRAL
+    time.sleep(MOVE_TO_NEUTRAL_DELAY)
+    print("Servo 6 at neutral position")
+    servos.servo[SERVO6_INDEX].angle = None #disable channel
+    
+    servos.servo[SERVO7_INDEX].angle = SERVO7_NEUTRAL
+    time.sleep(MOVE_TO_NEUTRAL_DELAY)
+    print("Servo 7 at neutral position")
+    servos.servo[SERVO7_INDEX].angle = None #disable channel
+    
+    servos.servo[SERVO8_INDEX].angle = SERVO8_NEUTRAL
+    time.sleep(2)
+    print("Servo 8 at neutral position")
+    servos.servo[SERVO8_INDEX].angle = None #disable channel
+    
+    servos.servo[SERVO9_INDEX].angle = SERVO9_NEUTRAL
+    time.sleep(MOVE_TO_NEUTRAL_DELAY)
+    print("Servo 9 at neutral position")
+    servos.servo[SERVO9_INDEX].angle = None #disable channel
+    
+    servos.servo[SERVO10_INDEX].angle = SERVO10_NEUTRAL
+    time.sleep(MOVE_TO_NEUTRAL_DELAY)
+    print("Servo 10 at neutral position")
+    servos.servo[SERVO10_INDEX].angle = None #disable channel
+    
+    servos.servo[SERVO11_INDEX].angle = SERVO11_NEUTRAL
+    time.sleep(MOVE_TO_NEUTRAL_DELAY)
+    print("Servo 11 at neutral position")
+    servos.servo[SERVO11_INDEX].angle = None #disable channel
+
 #tilts eyebrows down like he's angry
 def angry_eyebrows():
     global servo10_current_pos
@@ -176,7 +245,7 @@ def angry_eyebrows():
     left_eyebrow_down = 120
     
     #speed
-    eyebrow_speed = 0.005
+    eyebrow_speed = 0.003 # 3 milliseconds
     
     print("Moving eyebrows to angry")
     
@@ -190,7 +259,78 @@ def angry_eyebrows():
     #update global variables
     servo10_current_pos = right_eyebrow_down
     servo11_current_pos = left_eyebrow_down
-        
+
+#moves eyebrows to neutral position and disables the channel
+def neutral_eyebrows():
+    global servo10_current_pos
+    global servo11_current_pos
+    
+    #speed
+    eyebrow_speed = 0.003 # 3 milliseconds
+    
+    print("Moving eyebrows to neutral")
+    
+    move_servos([SERVO10_INDEX, SERVO11_INDEX],
+                [servo10_current_pos, servo11_current_pos],
+                [SERVO10_NEUTRAL, SERVO11_NEUTRAL],
+                eyebrow_speed)
+    
+    print("Eyebrows neutral")
+    
+    #update global variables
+    servo10_current_pos = SERVO10_NEUTRAL
+    servo11_current_pos = SERVO11_NEUTRAL
+
+    #disable servo channels
+    disable_channels([SERVO10_INDEX, SERVO11_INDEX])
+    
+#tilts eyebrows down like he's sad
+def sad_eyebrows():
+    global servo10_current_pos
+    global servo11_current_pos
+    
+    #animation keyframes
+    right_eyebrow_down = 75
+    left_eyebrow_down = 105
+    
+    #speed
+    eyebrow_speed = 0.003 # 3 milliseconds
+    
+    print("Moving eyebrows to sad")
+    
+    move_servos([SERVO10_INDEX, SERVO11_INDEX],
+                [servo10_current_pos, servo11_current_pos],
+                [right_eyebrow_down, left_eyebrow_down],
+                eyebrow_speed)
+    
+    print("Eyebrows sad")
+    
+    #update global variables
+    servo10_current_pos = right_eyebrow_down
+    servo11_current_pos = left_eyebrow_down
+    
+#tilts one eyebrow up like he's confused
+def confused_eyebrows():
+    global servo11_current_pos
+    
+    #animation keyframes
+    left_eyebrow_up = 60
+    
+    #speed
+    eyebrow_speed = 0.003 # 3 milliseconds
+    
+    print("Moving eyebrows to confused")
+    
+    move_servos([SERVO11_INDEX],
+                [servo11_current_pos],
+                [left_eyebrow_up],
+                eyebrow_speed)
+    
+    print("Eyebrows confused")
+    
+    #update global variables
+    servo11_current_pos = left_eyebrow_up
+
 #waves right arm
 def wave_right_arm():
     global servos
@@ -198,13 +338,13 @@ def wave_right_arm():
     print("Starting wave! Hello!")
     
     #animation keyframe degrees
-    shoulder_flexation = 135 #arm rasied to wave
-    elbow_flexation_1 = 118 #starting point for wave
-    elbow_flexation_2 = 138 #ending point for wave
+    shoulder_flexation = 95 #arm rasied to wave
+    elbow_flexation_1 = 108 #starting point for wave
+    elbow_flexation_2 = 128 #ending point for wave
     gripper_open = 102 #open position for gripper
 
     #animation speeds, delay in seconds between each change in servo position
-    arm_raise_lower_speed = 0.015 #15 milliseconds
+    arm_raise_lower_speed = 0.010 #10 milliseconds
     wave_speed = 0.010 #10 milliseconds
     
     print("Raising arm!")
@@ -224,7 +364,7 @@ def wave_right_arm():
                     [elbow_flexation_2],
                     wave_speed)
         
-        move_servos([SERVO0_INDEX],
+        move_servos([SERVO2_INDEX],
                     [elbow_flexation_2],
                     [elbow_flexation_1],
                     wave_speed)
@@ -436,7 +576,125 @@ def give_diploma():
     
     print("Done! Congratulations on graduating from UCF!")
     
+#raises arms a little so his grippers don't hit the base
+def raise_arms_for_rotation(): 
+    #animation variables
+    right_elbow_flexation = 58
+    left_elbow_flexation = 113
+    
+    #speed
+    arm_speed = 0.001 #1 ms delay, very fast!
+    
+    #raise arms
+    move_servos([SERVO2_INDEX, SERVO6_INDEX],
+                [SERVO2_NEUTRAL, SERVO6_NEUTRAL],
+                [right_elbow_flexation, left_elbow_flexation],
+                arm_speed)
+    
+    print("Arms raised for rotation")
+    
+#puts arms back to neutral after rotation and disables channels
+def lower_arms_after_rotation(): 
+    #animation variables
+    right_elbow_flexation = 58
+    left_elbow_flexation = 113
+    
+    #speed
+    arm_speed = 0.001 #1 ms delay, very fast!
+    
+    #raise arms
+    move_servos([SERVO2_INDEX, SERVO6_INDEX],
+                [right_elbow_flexation, left_elbow_flexation],
+                [SERVO2_NEUTRAL, SERVO6_NEUTRAL],
+                arm_speed)
+    
+    print("Arms lowered after rotation")
+    
+    #disable servos
+    disable_channels([SERVO2_INDEX, SERVO6_INDEX])
+    
+#nods head up and down in a 'yes' motion
+def nod_head():
+    global servo9_current_pos
+    
+    #animation variable
+    head_nod_up = 140
+    num_nods = 2
+    
+    #speed
+    head_nod_speed = 0.005 #5 milliseconds
+    
+    #ensure head is a neutral position
+    move_servos([SERVO9_INDEX], [servo9_current_pos], [SERVO9_NEUTRAL], head_nod_speed)
+    
+    for _ in range(num_nods):
+        print("Nodding!")
         
+        #move servo to up position
+        move_servos([SERVO9_INDEX],
+                    [SERVO9_NEUTRAL],
+                    [head_nod_up],
+                    head_nod_speed)
+        
+        #move servo to down position
+        move_servos([SERVO9_INDEX],
+                    [head_nod_up],
+                    [SERVO9_NEUTRAL],
+                    head_nod_speed)
+        
+    #disable servo channel
+    disable_channels([SERVO9_INDEX])
+    
+    #update global variable
+    servo9_current_pos = SERVO9_NEUTRAL
+
+#tilts head to the 
+def tilt_head_confused():
+    global servo8_current_pos
+    print("Tilting head to confused")
+    
+    #animation keyframe
+    head_tilt = 20 #tilt head right
+    
+    #speed
+    head_tilt_speed = 0.005 # 5 milliseconds
+    
+    #tilt head
+    move_servos([SERVO8_INDEX],
+                [servo8_current_pos],
+                [head_tilt],
+                head_tilt_speed)
+    
+    #update global variables
+    servo8_current_pos = head_tilt
+
+#tilts head back to neutral position and disables the servo channel
+def head_tilt_neutral():
+    global servo8_current_pos
+    global servo9_current_pos
+    
+    print("Tilting head back to neutral")
+    
+    #speed
+    head_tilt_speed = 0.005 # 5 milliseconds
+    
+    #tilt head
+    move_servos([SERVO8_INDEX],
+                [servo8_current_pos],
+                [SERVO8_NEUTRAL],
+                head_tilt_speed)
+    
+    move_servos([SERVO9_INDEX],
+                [servo9_current_pos],
+                [SERVO9_NEUTRAL],
+                head_tilt_speed)
+    
+    #update global variables
+    servo8_current_pos = SERVO8_NEUTRAL
+    servo9_current_pos = SERVO9_NEUTRAL
+    
+    #diable channel
+    disable_channels([SERVO8_INDEX, SERVO9_INDEX])
     
 # **** END SERVO FUNCTIONS
 
@@ -445,37 +703,59 @@ def give_diploma():
 def neutral():
     print("Neutral")
     neutral_eyes()
+    neutral_eyebrows()
+    head_tilt_neutral()
 
 def happy():
     print("Happy")
     happy_eyes()
+    neutral_eyebrows()
     
 def sad():
     print("Sad")
     sad_eyes()
+    sad_eyebrows()
     
 def confused():
     print("Confused")
+    shocked_eyes()
+    confused_eyebrows()
+    tilt_head_confused()
 
 def angry():
     print("Angry")
     angry_eyes()
+    angry_eyebrows()
     crab()
 
 def yes():
     print("Yes")
+    happy_eyes()
+    nod_head()
+    neutral_eyes()
     
 def greeting():
     print("Greeting")
+    happy_eyes()
     wave_right_arm()
-    
+    neutral_eyes()
+
+#reaches forwards to recieve a gift
 def reach_forward():
     print("Reaching forward")
     reach_right_arm()
-    
+
+#robot is happy after receiving a gift
 def reach_backward():
     print("Reaching backwards")
     retract_right_arm()
+    happy_eyes()
+
+#robot is happy to see us graduate
+def diploma():
+    happy_eyes()
+    give_diploma()
+    neutral_eyes
     
     
 #LED FUNCTIONS
@@ -743,6 +1023,9 @@ def stop_drive_motors():
 
 #beging to rotate torso
 def begin_torso_rotation(going_right):
+    #raise arms a little
+    raise_arms_for_rotation()
+    
     #set direction pins correctly
     if going_right:
         print("Moving to the right.")
@@ -760,6 +1043,8 @@ def end_torso_rotation():
     GPIO.output(m3_in2_pin,GPIO.LOW)
     
     print("Torso rotation ended")
+    
+    lower_arms_after_rotation()
     
 
 # **** MAIN FUNCTIONS ****
@@ -839,7 +1124,11 @@ def performance_mode_loop():
         elif msg == "rb":
             reach_backward()
         elif msg == "d":
-            give_diploma()
+            diploma()
+        elif msg == "n":
+            neutral()
+        elif msg == "q":
+            move_to_neutral()
         else:
             connection.send(bytes("I don't know what you want from me!", "utf-8"))
             
@@ -983,7 +1272,7 @@ GPIO.setup(m3_speed_pin,GPIO.OUT)
 GPIO.output(m3_in1_pin,GPIO.LOW)
 GPIO.output(m3_in2_pin,GPIO.LOW)
 m3_speed_pwm = GPIO.PWM(m3_speed_pin,1000)
-m3_current_speed = 100 #default speed is 100% of duty cycle
+m3_current_speed = 85 #default speed is 100% of duty cycle
 m3_speed_pwm.start(m3_current_speed)
 
 print("Motor 3 initialized.")
@@ -1004,7 +1293,7 @@ ORDER = neopixel.GRB
 
 #initialize GLOBAL object to encapsulate both LED screens
 pixels = neopixel.NeoPixel(
-    pixel_pin, num_pixels, brightness=0.2, auto_write=False, pixel_order=ORDER
+    pixel_pin, num_pixels, brightness=0.05, auto_write=False, pixel_order=ORDER
 )
 
 print("LED screens initialized.")
